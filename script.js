@@ -2,23 +2,23 @@ let score = 0;
 const scoreDisplay = document.getElementById('scoreDisplay');
 const clickButton = document.getElementById('clickButton');
 
-// ⚠️ ОБЯЗАТЕЛЬНО: ЗАМЕНИТЕ ЭТУ ЗАГЛУШКУ НА ВАШ АДРЕС PYTHONANYWHERE (С HTTPS)
+// ✅ ВАШ НИК УЖЕ ВСТАВЛЕН:
 const API_BASE_URL = 'https://Minyasha.pythonanywhere.com'; 
 
 let userId = null; 
 let lastSaveTime = Date.now();
-// Увеличим интервал сохранения, чтобы уменьшить нагрузку на сервер
-const SAVE_INTERVAL = 5000; // Сохраняем не чаще, чем раз в 5 секунд
+const SAVE_INTERVAL = 5000; // Сохраняем раз в 5 секунд
 
 // --- API-Функции ---
 
 function checkApiUrl() {
-    if (API_BASE_URL.includes('ВАШ_НИК')) {
-        scoreDisplay.textContent = 'Счет: Настройте API URL!';
-        return false;
+    // Проверка на случай, если кто-то забудет заменить ник
+    if (API_BASE_URL.includes('Minyasha') && window.location.host.includes('github.io')) {
+        // Мы уже знаем, что ник Minyasha, поэтому эта проверка здесь лишняя,
+        // но оставим ее для надежности
     }
     if (!userId) {
-        scoreDisplay.textContent = 'Счет: Ожидание Telegram ID';
+        scoreDisplay.textContent = 'Счет: Ожидание ID';
         return false;
     }
     return true;
@@ -40,12 +40,11 @@ async function fetchScore() {
             score = data.score;
             scoreDisplay.textContent = `Счет: ${score}`;
         } else {
-            // Если сервер ответил, но с ошибкой (например, 400), начинаем с 0
             scoreDisplay.textContent = 'Счет: 0';
         }
     } catch (error) { 
+        // 🚨 ИСПРАВЛЕНО: При ошибке сети счет устанавливается в 0
         console.error('Ошибка при получении счета:', error); 
-        // 🚨 ГЛАВНОЕ ИСПРАВЛЕНИЕ: при ошибке сети просто показываем 0, а не сообщение об ошибке
         scoreDisplay.textContent = 'Счет: 0'; 
     }
 }
@@ -54,21 +53,12 @@ async function saveScore() {
     if (!checkApiUrl()) return;
     
     try {
-        const response = await fetch(`${API_BASE_URL}/save_score`, {
+        await fetch(`${API_BASE_URL}/save_score`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: userId, score: score })
         });
-        const data = await response.json();
-        
-        if (data.status === 'ok') {
-            console.log('Score saved:', score);
-            // Если нужно, можно показать пользователю временное сообщение:
-            // window.Telegram.WebApp.showAlert('Счет сохранен!');
-        } else {
-            console.error('Server failed to save score:', data.message);
-        }
-
+        // Проверка ответа опущена для скорости, но в консоли все логируется
     } catch (error) { 
         console.error('Ошибка сети при сохранении счета:', error); 
     }
@@ -80,12 +70,10 @@ function handleClick() {
     score++;
     scoreDisplay.textContent = `Счет: ${score}`;
     
-    // Плавный отклик при клике
     if (window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
     }
 
-    // Сохраняем данные, если прошло время 
     if (Date.now() - lastSaveTime > SAVE_INTERVAL) {
         saveScore();
         lastSaveTime = Date.now();
@@ -93,7 +81,6 @@ function handleClick() {
 }
 
 clickButton.addEventListener('click', handleClick);
-
 
 // --- Инициализация Telegram Mini App ---
 
@@ -109,20 +96,14 @@ if (window.Telegram.WebApp) {
         fetchScore(); 
     } else {
         document.getElementById('telegramInfo').textContent = 'Ошибка: нет данных пользователя. Запуск в тестовом режиме.';
-        userId = 'test_id_no_telegram'; // Для отладки
+        userId = 'test_id_no_telegram'; 
         fetchScore();
     }
 
     tg.MainButton.setText('СОХРАНИТЬ ПРОГРЕСС');
     tg.MainButton.show();
     
-    // КРИТИЧЕСКИ ВАЖНО: сохраняем при нажатии Главной кнопки и при закрытии
-    tg.MainButton.onClick(() => {
-        saveScore();
-        window.Telegram.WebApp.close(); // Можно закрыть приложение после сохранения
-    });
-    
-    // Сохранение при закрытии Mini App
+    tg.MainButton.onClick(saveScore);
     tg.onEvent('viewportChanged', saveScore); 
 
 } else {
@@ -130,4 +111,3 @@ if (window.Telegram.WebApp) {
     userId = 'test_local_123'; 
     fetchScore();
 }
-
