@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Мой Кликер Mini App</title>
+    
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        
+        <div id="scoreDisplay">Счет: Загрузка...</div>
+        
+        <button id="clickButton">КЛИК</button>
+        
+        <p id="telegramInfo">Инициализация...</p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
