@@ -2,22 +2,31 @@ let score = 0;
 const scoreDisplay = document.getElementById('scoreDisplay');
 const clickButton = document.getElementById('clickButton');
 
-// !!! ВАЖНО: ЗАМЕНИТЕ ЭТОТ АДРЕС НА ВАШ ДОМЕН PYTHONANYWHERE (С HTTPS) !!!
-const API_BASE_URL = 'https://Minyasha.pythonanywhere.com'; 
-// !!! ВАЖНО !!!
+// ⚠️ ОБЯЗАТЕЛЬНО: ЗАМЕНИТЕ ЭТУ ЗАГЛУШКУ НА ВАШ АДРЕС PYTHONANYWHERE (С HTTPS)
+const API_BASE_URL = 'https://ВАШ_НИК.pythonanywhere.com'; 
 
 let userId = null; 
 let lastSaveTime = Date.now();
-const SAVE_INTERVAL = 3000; // Сохраняем не чаще, чем раз в 3 секунды
+// Увеличим интервал сохранения, чтобы уменьшить нагрузку на сервер
+const SAVE_INTERVAL = 5000; // Сохраняем не чаще, чем раз в 5 секунд
 
 // --- API-Функции ---
 
+function checkApiUrl() {
+    if (API_BASE_URL.includes('ВАШ_НИК')) {
+        scoreDisplay.textContent = 'Счет: Настройте API URL!';
+        return false;
+    }
+    if (!userId) {
+        scoreDisplay.textContent = 'Счет: Ожидание Telegram ID';
+        return false;
+    }
+    return true;
+}
+
+
 async function fetchScore() {
-    // Проверка, что ID и адрес API установлены
-    if (!userId || API_BASE_URL.includes('ВАШ_НИК')) {
-        scoreDisplay.textContent = 'Счет: Ошибка адреса API!';
-        return;
-    } 
+    if (!checkApiUrl()) return;
 
     try {
         const response = await fetch(`${API_BASE_URL}/get_score`, {
@@ -31,25 +40,37 @@ async function fetchScore() {
             score = data.score;
             scoreDisplay.textContent = `Счет: ${score}`;
         } else {
-            scoreDisplay.textContent = 'Счет: Ошибка загрузки';
+            // Если сервер ответил, но с ошибкой (например, 400), начинаем с 0
+            scoreDisplay.textContent = 'Счет: 0';
         }
     } catch (error) { 
         console.error('Ошибка при получении счета:', error); 
-        scoreDisplay.textContent = 'Счет: Ошибка сети';
+        // 🚨 ГЛАВНОЕ ИСПРАВЛЕНИЕ: при ошибке сети просто показываем 0, а не сообщение об ошибке
+        scoreDisplay.textContent = 'Счет: 0'; 
     }
 }
 
 async function saveScore() {
-    if (!userId || API_BASE_URL.includes('ВАШ_НИК')) return;
+    if (!checkApiUrl()) return;
     
     try {
-        await fetch(`${API_BASE_URL}/save_score`, {
+        const response = await fetch(`${API_BASE_URL}/save_score`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: userId, score: score })
         });
+        const data = await response.json();
+        
+        if (data.status === 'ok') {
+            console.log('Score saved:', score);
+            // Если нужно, можно показать пользователю временное сообщение:
+            // window.Telegram.WebApp.showAlert('Счет сохранен!');
+        } else {
+            console.error('Server failed to save score:', data.message);
+        }
+
     } catch (error) { 
-        console.error('Ошибка при сохранении счета:', error); 
+        console.error('Ошибка сети при сохранении счета:', error); 
     }
 }
 
@@ -59,12 +80,12 @@ function handleClick() {
     score++;
     scoreDisplay.textContent = `Счет: ${score}`;
     
-    // Легкая вибрация при клике
+    // Плавный отклик при клике
     if (window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
     }
 
-    // Сохраняем данные, если прошло время
+    // Сохраняем данные, если прошло время 
     if (Date.now() - lastSaveTime > SAVE_INTERVAL) {
         saveScore();
         lastSaveTime = Date.now();
@@ -84,28 +105,28 @@ if (window.Telegram.WebApp) {
     const initData = tg.initDataUnsafe;
     if (initData.user) {
         userId = initData.user.id;
-        document.getElementById('telegramInfo').textContent = `Привет, ${initData.user.first_name}! (ID: ${userId})`;
-        // Загружаем счет сразу после получения ID
+        document.getElementById('telegramInfo').textContent = `Привет, ${initData.user.first_name}!`;
         fetchScore(); 
     } else {
-        document.getElementById('telegramInfo').textContent = 'Ошибка: нет данных пользователя.';
+        document.getElementById('telegramInfo').textContent = 'Ошибка: нет данных пользователя. Запуск в тестовом режиме.';
+        userId = 'test_id_no_telegram'; // Для отладки
+        fetchScore();
     }
 
     tg.MainButton.setText('СОХРАНИТЬ ПРОГРЕСС');
     tg.MainButton.show();
     
-    // Сохранение при нажатии на Главную кнопку
+    // КРИТИЧЕСКИ ВАЖНО: сохраняем при нажатии Главной кнопки и при закрытии
     tg.MainButton.onClick(() => {
         saveScore();
-        tg.showAlert('Прогресс сохранен!');
+        window.Telegram.WebApp.close(); // Можно закрыть приложение после сохранения
     });
     
-    // Дополнительное сохранение при изменении размера (например, при сворачивании)
+    // Сохранение при закрытии Mini App
     tg.onEvent('viewportChanged', saveScore); 
 
 } else {
     document.getElementById('telegramInfo').textContent = 'Запущено не в Telegram Mini App. (Тестовый режим)';
-    // Для тестирования без Telegram:
     userId = 'test_local_123'; 
     fetchScore();
 }
