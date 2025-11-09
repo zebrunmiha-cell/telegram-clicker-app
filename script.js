@@ -3,7 +3,7 @@ const scoreDisplay = document.getElementById('scoreDisplay');
 const clickButton = document.getElementById('clickButton');
 
 // ⚠️ ОБЯЗАТЕЛЬНО: ЗАМЕНИТЕ ЭТУ ЗАГЛУШКУ НА ВАШ АДРЕС PYTHONANYWHERE (С HTTPS)
-const API_BASE_URL = 'https://ВАШ_НИК.pythonanywhere.com'; 
+const API_BASE_URL = 'https://Minyasha.pythonanywhere.com'; 
 
 let userId = null; 
 let lastSaveTime = Date.now();
@@ -130,3 +130,4 @@ if (window.Telegram.WebApp) {
     userId = 'test_local_123'; 
     fetchScore();
 }
+
