@@ -2,21 +2,25 @@ let score = 0;
 const scoreDisplay = document.getElementById('scoreDisplay');
 const clickButton = document.getElementById('clickButton');
 
-// ✅ ВАШ НИК УЖЕ ВСТАВЛЕН:
+// Установите ваш API URL
 const API_BASE_URL = 'https://Minyasha.pythonanywhere.com'; 
 
+// Telegram Web App
+const tg = window.Telegram.WebApp;
 let userId = null; 
+
+// Инициализация Telegram Web App
+tg.ready();
+if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+    userId = tg.initDataUnsafe.user.id.toString();
+}
+
 let lastSaveTime = Date.now();
-const SAVE_INTERVAL = 5000; // Сохраняем раз в 5 секунд
+const SAVE_INTERVAL = 5000; 
 
 // --- API-Функции ---
 
 function checkApiUrl() {
-    // Проверка на случай, если кто-то забудет заменить ник
-    if (API_BASE_URL.includes('Minyasha') && window.location.host.includes('github.io')) {
-        // Мы уже знаем, что ник Minyasha, поэтому эта проверка здесь лишняя,
-        // но оставим ее для надежности
-    }
     if (!userId) {
         scoreDisplay.textContent = 'Счет: Ожидание ID';
         return false;
@@ -24,9 +28,10 @@ function checkApiUrl() {
     return true;
 }
 
-
 async function fetchScore() {
     if (!checkApiUrl()) return;
+    
+    scoreDisplay.textContent = `Счет: Загрузка...`;
 
     try {
         const response = await fetch(`${API_BASE_URL}/get_score`, {
@@ -36,18 +41,22 @@ async function fetchScore() {
         });
         const data = await response.json();
         
-        if (data.status === 'ok') {
+        if (data.status === 'ok' && data.score !== undefined) {
+            // Успех: Обновляем score
             score = data.score;
-            scoreDisplay.textContent = `Счет: ${score}`;
         } else {
-            scoreDisplay.textContent = 'Счет: 0';
+            // Сервер ответил ошибкой (но не сброс счета)
+            console.error('Сервер ответил ошибкой при получении счета:', data.message);
         }
     } catch (error) { 
-        // 🚨 ИСПРАВЛЕНО: При ошибке сети счет устанавливается в 0
-        console.error('Ошибка при получении счета:', error); 
-        scoreDisplay.textContent = 'Счет: 0'; 
+        // Ошибка сети: не сбрасываем score, сохраняем текущее состояние
+        console.error('Ошибка сети при получении счета:', error); 
     }
+    
+    // Отображаем финальное значение
+    scoreDisplay.textContent = `Счет: ${score}`;
 }
+
 
 async function saveScore() {
     if (!checkApiUrl()) return;
@@ -58,7 +67,6 @@ async function saveScore() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: userId, score: score })
         });
-        // Проверка ответа опущена для скорости, но в консоли все логируется
     } catch (error) { 
         console.error('Ошибка сети при сохранении счета:', error); 
     }
@@ -69,10 +77,7 @@ async function saveScore() {
 function handleClick() {
     score++;
     scoreDisplay.textContent = `Счет: ${score}`;
-    
-    if (window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
-    }
+    tg.HapticFeedback.impactOccurred('light');
 
     if (Date.now() - lastSaveTime > SAVE_INTERVAL) {
         saveScore();
@@ -80,34 +85,12 @@ function handleClick() {
     }
 }
 
+// --- Запуск ---
+
 clickButton.addEventListener('click', handleClick);
 
-// --- Инициализация Telegram Mini App ---
+// Сохраняем счет, когда Mini App закрывается
+tg.onEvent('viewportChanged', saveScore); 
 
-if (window.Telegram.WebApp) {
-    const tg = window.Telegram.WebApp;
-    tg.ready(); 
-    tg.expand(); 
-    
-    const initData = tg.initDataUnsafe;
-    if (initData.user) {
-        userId = initData.user.id;
-        document.getElementById('telegramInfo').textContent = `Привет, ${initData.user.first_name}!`;
-        fetchScore(); 
-    } else {
-        document.getElementById('telegramInfo').textContent = 'Ошибка: нет данных пользователя. Запуск в тестовом режиме.';
-        userId = 'test_id_no_telegram'; 
-        fetchScore();
-    }
-
-    tg.MainButton.setText('СОХРАНИТЬ ПРОГРЕСС');
-    tg.MainButton.show();
-    
-    tg.MainButton.onClick(saveScore);
-    tg.onEvent('viewportChanged', saveScore); 
-
-} else {
-    document.getElementById('telegramInfo').textContent = 'Запущено не в Telegram Mini App. (Тестовый режим)';
-    userId = 'test_local_123'; 
-    fetchScore();
-}
+// Загружаем счет при старте
+fetchScore();
