@@ -3,7 +3,7 @@ const scoreDisplay = document.getElementById('scoreDisplay');
 const clickButton = document.getElementById('clickButton');
 
 // Установите ваш API URL
-const API_BASE_URL = 'https://Minyasha.pythonanywhere.com'; 
+const API_BASE_URL = 'https://Minyasha.pythonanywhere.com/v2'; // <--- ВРЕМЕННОЕ ИЗМЕНЕНИЕ 
 
 // Telegram Web App
 const tg = window.Telegram.WebApp;
@@ -104,3 +104,4 @@ function initApp() {
 
 // Запуск инициализации приложения
 initApp();
+
